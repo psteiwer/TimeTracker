@@ -1,0 +1,20 @@
+{
+    "intersystems.servers": {
+        "timetracker": {
+            "webServer": {
+                "scheme": "http",
+                "host": "localhost",
+                "port": 31313
+            },
+            "username": "_system"
+        }
+    },
+    "objectscript.conn": {
+        "server": "timetracker",
+        "ns": "TIMETRACKER",
+        "active": true
+    },
+  "objectscript.export": {
+    "folder": "src/backend"
+  }
+}

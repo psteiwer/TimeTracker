@@ -1,0 +1,18 @@
+[Startup]
+PasswordHash=
+
+[Actions]
+# Prepare DB/NS
+CreateResource:Name=%DB_TIMETRACKER,Description="TIMETRACKER database"
+CreateDatabase:Name=TIMETRACKER,Directory=/data/timetrackerDB/,Resource=%DB_TIMETRACKER
+CreateNamespace:Name=TIMETRACKER,Globals=TIMETRACKER
+
+# Import Classes
+Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.OBJ,MethodName="ImportDir",Arg1="/src/",Arg2="",Arg3="ck",Arg4="",Arg5=1
+
+# Create Web App
+CreateApplication:Name=/api/timetracker,Description="API for serving REST",NameSpace=TIMETRACKER,Path=/src/web,DispatchClass=TimeTracker.REST.disp,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
+
+# Create Role and permissions
+CreateRole:Name=TimeTrackerApp,Description="Role for the app",Resources="%DB_%DEFAULT:RW,%DB_TIMETRACKER:RW"
+Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.SQL.Security,MethodName="GrantPrivilege",Arg1="*",Arg2="TimeTracker",Arg3="SCHEMA",Arg4="TimeTrackerApp"

@@ -1,0 +1,27 @@
+services:
+  timetracker:
+    restart: unless-stopped
+    container_name: timetracker
+    image: containers.intersystems.com/intersystems/iris-community:latest-cd
+    volumes:
+      - ./src/backend:/src
+      - ./config/iris:/config
+      - ./data:/data
+    environment:
+      - ISC_CPF_MERGE_FILE=/config/extra.cpf
+  timetracker-webgateway:
+    restart: unless-stopped
+    image: containers.intersystems.com/intersystems/webgateway:latest-cd
+    init: true
+    container_name: timetracker-webgateway
+    hostname: webgateway
+    ports:
+      - "31313:80"
+    environment:
+      - ISC_CSP_CONF_FILE=/config/CSP.conf
+      - ISC_CSP_INI_FILE=/config/CSP.ini
+    volumes:
+      - ./config/webgateway:/config
+      - ./src/frontend:/src/web
+    depends_on:
+      - timetracker

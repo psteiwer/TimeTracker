@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Time Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding: 24px; }
+    td, th { vertical-align: middle; }
+    .task-input { min-width: 260px; }
+    .category-select { min-width: 180px; }
+    code { font-size: 0.9em; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <h1 class="h4 mb-0">Time Tracking</h1>
+
+    <input id="dateInput" type="date" class="form-control" style="max-width: 180px;">
+
+    <button id="toggleBtn" class="btn btn-outline-secondary btn-sm">
+      Show full day
+    </button>
+
+    <span id="status" class="text-muted small"></span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th style="width:120px;">Start</th>
+          <th style="width:120px;">End</th>
+          <th>Task</th>
+          <th style="width:220px;">Category</th>
+          <th style="width:90px;" class="text-center">IsWork</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ================== CONFIG ==================
+  const API_BASE = "https://localhost:31313/api/timetracker"; // <-- replace
+  const API = {
+    entries: (date) => `${API_BASE}/tasks}`,
+    categories: () => `${API_BASE}/categories`,
+    putEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
+    postEntry: () => `${API_BASE}/task`,
+  };
+
+  // Default visible range: 08:45–17:15 (i.e., last slot starts 17:00)
+  const WORKDAY_START = "08:45";
+  const WORKDAY_END   = "17:15"; // end boundary (exclusive)
+
+  // ================== STATE ==================
+  let showFullDay = false;
+  let rows = [];        // current visible rows
+  let categories = [];
+  const saveTimers = new Map();
+
+  // ================== DOM ==================
+  const tbody = document.getElementById("tbody");
+  const dateInput = document.getElementById("dateInput");
+  const status = document.getElementById("status");
+  const toggleBtn = document.getElementById("toggleBtn");
+
+  // ================== TIME HELPERS ==================
+  const pad = n => String(n).padStart(2, "0");
+
+  function toMinutes(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  }
+
+  function addMinutes(hhmm, mins) {
+    const total = (toMinutes(hhmm) + mins) % 1440;
+    return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+  }
+
+  function slotsBetween(startHHMM, endHHMM) {
+    // end is exclusive
+    const start = toMinutes(startHHMM);
+    const end = toMinutes(endHHMM);
+    const slots = [];
+    for (let t = start; t < end; t += 15) {
+      slots.push(`${pad(Math.floor(t / 60))}:${pad(t % 60)}`);
+    }
+    return slots;
+  }
+
+  function getVisibleSlots() {
+    return showFullDay
+      ? slotsBetween("00:00", "24:00")
+      : slotsBetween(WORKDAY_START, WORKDAY_END);
+  }
+
+  // ================== API HELPERS ==================
+  async function get(url) {
+    const r = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!r.ok) throw new Error(`GET ${r.status}`);
+    return r.json();
+  }
+
+  async function put(url, body) {
+    const r = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`PUT ${r.status}`);
+    return r.json();
+  }
+
+  async function post(url, body) {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`POST ${r.status}`);
+    return r.json();
+  }
+
+  // ================== RENDER ==================
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, m =>
+      ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m])
+    );
+  }
+
+  function render() {
+    tbody.innerHTML = rows.map(r => `
+      <tr data-start="${r.start}">
+        <td><code>${r.start}</code></td>
+        <td><code>${addMinutes(r.start, 15)}</code></td>
+
+        <td>
+          <input class="form-control form-control-sm task-input"
+                 data-field="task"
+                 value="${escapeHtml(r.task)}"
+                 placeholder="Task…">
+        </td>
+
+        <td>
+          <select class="form-select form-select-sm category-select"
+                  data-field="category">
+            <option value=""></option>
+            ${categories.map(c => `
+              <option value="${escapeHtml(c.id)}" ${c.id === r.category ? "selected" : ""}>
+                ${escapeHtml(c.name)}
+              </option>
+            `).join("")}
+          </select>
+        </td>
+
+        <td class="text-center">
+          <input type="checkbox"
+                 class="form-check-input"
+                 data-field="isWork"
+                 ${r.isWork ? "checked" : ""}>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  // ================== LOAD / OVERLAY ==================
+  function showError(msg) {
+    console.error(msg);
+    status.textContent = msg;
+  }
+
+  function buildBlankVisibleGrid() {
+    rows = getVisibleSlots().map(start => ({
+      id: undefined,
+      start,
+      task: "",
+      category: "",
+      isWork: false
+    }));
+  }
+
+  async function loadDay(date) {
+    status.textContent = "Loading…";
+
+    // Always show blank visible rows immediately
+    buildBlankVisibleGrid();
+    render();
+
+    // Try categories
+    try {
+      categories = await get(API.categories());
+    } catch (e) {
+      categories = [];
+      showError("Warning: categories failed to load (dropdown empty).");
+    }
+    render();
+
+    // Try entries overlay (entries API can return [] and that's fine)
+    try {
+      const existing = await get(API.entries(date));
+      const byStart = new Map(existing.map(e => [e.start, e]));
+
+      for (const row of rows) {
+        const e = byStart.get(row.start);
+        if (!e) continue;
+
+        row.id = e.id;
+        row.task = e.task ?? "";
+        row.category = e.category ?? "";
+        row.isWork = (e.isWork ?? true) === true;
+      }
+
+      status.textContent = "";
+      render();
+    } catch (e) {
+      showError("Warning: entries failed to load (showing blank rows).");
+    }
+  }
+
+  // ================== SAVE (per-row) ==================
+  function buildPayload(row) {
+    return {
+      date: dateInput.value,
+      start: row.start,
+      end: addMinutes(row.start, 15),
+      task: row.task,
+      category: row.category,
+      isWork: row.isWork,
+    };
+  }
+
+  function shouldPersist(row) {
+    // Avoid creating records for empty rows (adjust if you want every slot saved)
+    return row.task.trim() !== "" || row.category.trim() !== "" || row.isWork === false;
+  }
+
+  function debounceSave(row, delay = 300) {
+    const key = row.start;
+    if (saveTimers.has(key)) clearTimeout(saveTimers.get(key));
+    saveTimers.set(key, setTimeout(() => {
+      saveTimers.delete(key);
+      saveRow(row);
+    }, delay));
+  }
+
+  async function saveRow(row) {
+    if (!shouldPersist(row)) {
+      status.textContent = "";
+      return;
+    }
+
+    status.textContent = `Saving ${row.start}…`;
+    const payload = buildPayload(row);
+
+    try {
+      if (row.id) {
+        const updated = await put(API.putEntry(row.id), payload);
+        row.id = updated?.id ?? row.id;
+      } else {
+        const created = await post(API.postEntry(), payload);
+        row.id = created?.id;
+      }
+      status.textContent = "";
+    } catch (e) {
+      console.error(e);
+      status.textContent = `Save failed (${row.start})`;
+    }
+  }
+
+  // ================== EVENTS ==================
+  function findRow(start) {
+    return rows.find(r => r.start === start);
+  }
+
+  tbody.addEventListener("input", (e) => {
+    const target = e.target;
+    const tr = target?.closest?.("tr");
+    if (!tr) return;
+
+    const row = findRow(tr.dataset.start);
+    if (!row) return;
+
+    if (target.dataset.field === "task") {
+      row.task = target.value;
+      debounceSave(row);
+    }
+  });
+
+  tbody.addEventListener("change", (e) => {
+    const target = e.target;
+    const tr = target?.closest?.("tr");
+    if (!tr) return;
+
+    const row = findRow(tr.dataset.start);
+    if (!row) return;
+
+    if (target.dataset.field === "category") row.category = target.value;
+    if (target.dataset.field === "isWork") row.isWork = target.checked;
+
+    saveRow(row);
+  });
+
+  toggleBtn.addEventListener("click", async () => {
+    showFullDay = !showFullDay;
+    toggleBtn.textContent = showFullDay ? "Show workday only" : "Show full day";
+    await loadDay(dateInput.value); // rebuild visible rows + overlay entries
+  });
+
+  // ================== INIT ==================
+  function todayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  dateInput.value = todayISO();
+  dateInput.addEventListener("change", () => loadDay(dateInput.value));
+
+  // initial label
+  toggleBtn.textContent = "Show full day";
+  loadDay(dateInput.value);
+})();
+</script>
+</body>
+</html>
