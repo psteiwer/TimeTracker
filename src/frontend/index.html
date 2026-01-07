@@ -46,9 +46,9 @@
 <script>
 (() => {
   // ================== CONFIG ==================
-  const API_BASE = "https://localhost:31313/api/timetracker"; // <-- replace
+  const API_BASE = "http://localhost:31313/api/timetracker"; // <-- replace
   const API = {
-    entries: (date) => `${API_BASE}/tasks}`,
+    entries: () => `${API_BASE}/tasks`,
     categories: () => `${API_BASE}/categories`,
     putEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
     postEntry: () => `${API_BASE}/task`,
@@ -203,7 +203,19 @@
 
     // Try entries overlay (entries API can return [] and that's fine)
     try {
-      const existing = await get(API.entries(date));
+      const existing = await post(
+        API.entries(),
+        {
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            filters: [
+              { day: date }
+            ]
+          })
+        }
+      );
       const byStart = new Map(existing.map(e => [e.start, e]));
 
       for (const row of rows) {
