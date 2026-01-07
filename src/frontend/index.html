@@ -252,7 +252,7 @@
     return row.task.trim() !== "" || row.category.trim() !== "" || row.isWork === false;
   }
 
-  function debounceSave(row, delay = 300) {
+  function debounceSave(row, delay = 1000) {
     const key = row.start;
     if (saveTimers.has(key)) clearTimeout(saveTimers.get(key));
     saveTimers.set(key, setTimeout(() => {
