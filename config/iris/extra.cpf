@@ -1,5 +1,5 @@
 [Startup]
-PasswordHash=
+PasswordHash=ca06c222dca71333a38eeffb4d81b8deb923a5776585a61df03690bbd8ffe63e27cbc35b428a1422764c55d5e9f7a2c4acdd6a27e8b19832d977f545d669d81a,eca1b36d3bc2f73758e7c5209e0518503faddc1d70f2af6c87836c7c7a219d4d72443c9804b2b414e82b52bfd7fa9ffefb218e35fc78853a0a0e51442b1df017,10000,SHA512
 
 [Actions]
 # Prepare DB/NS
@@ -11,6 +11,7 @@ CreateNamespace:Name=TIMETRACKER,Globals=TIMETRACKER
 Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.OBJ,MethodName="ImportDir",Arg1="/src/",Arg2="",Arg3="ck",Arg4="",Arg5=1
 
 # Create Web App
+CreateApplication:Name=/csp/timetracker,Description="CSP app",NameSpace=TIMETRACKER,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
 CreateApplication:Name=/api/timetracker,Description="API for serving REST",NameSpace=TIMETRACKER,Path=/src/web,DispatchClass=TimeTracker.REST.disp,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
 
 # Create Role and permissions

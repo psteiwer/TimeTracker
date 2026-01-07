@@ -1,4 +1,4 @@
-Class src.backend.TimeTracker.REST.disp Extends %CSP.REST
+Class TimeTracker.REST.disp Extends %CSP.REST
 {
 
 Parameter HandleCorsRequest = 0;
@@ -12,6 +12,11 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/task/:id" Method="get" Call="getTask" />
   <Route Url="/task/:id" Method="put" Call="updateTask" />
   <Route Url="/task/:id" Method="delete" Call="deleteTask" />
+
+  <Route Url="/categories" Method="get" Call="getCategories"/>
+  <Route Url="/category" Method="post" Call="addCategory"/>
+  <Route Url="/category/:id" Method="put" Call="updateCategory"/>
+  <Route Url="/category/:id" Method="delete" Call="deleteCategory"/>
 </Routes>
 }
 
@@ -20,7 +25,7 @@ ClassMethod getTasks() As %Status
     Try {
         Do ##class(%REST.Impl).%SetContentType("application/json")
         If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
-        Set response=##class(TimeTracker.REST.impl).getTasks(%request.Content)
+        Set response=##class(TimeTracker.REST.impl).getTasks({}.%FromJSON({}.%FromJSON(%request.Content).body))
         Do ##class(%REST.Impl).%WriteResponse(response)
     } Catch (ex) {
         Do ##class(%REST.Impl).%SetStatusCode("400")
@@ -77,6 +82,20 @@ ClassMethod deleteTask(tId As %String) As %Status
         Do ##class(%REST.Impl).%SetContentType("application/json")
         If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
         Set response=##class(TimeTracker.REST.impl).deleteTask(tId)
+        Do ##class(%REST.Impl).%WriteResponse(response)
+    } Catch (ex) {
+        Do ##class(%REST.Impl).%SetStatusCode("400")
+        return {"errormessage": "Client error"}
+    }
+    Quit $$$OK
+}
+
+ClassMethod getCategories() As %Status
+{
+    Try {
+        Do ##class(%REST.Impl).%SetContentType("application/json")
+        If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
+        Set response=##class(TimeTracker.REST.impl).getCategories()
         Do ##class(%REST.Impl).%WriteResponse(response)
     } Catch (ex) {
         Do ##class(%REST.Impl).%SetStatusCode("400")

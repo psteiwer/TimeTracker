@@ -5,19 +5,22 @@ ClassMethod getTasks(pWhere As %DynamicObject) As %DynamicArray
 {
     Set tSC = $$$OK
     Set tResponse = []
-    Set tSQL="SELECT JSON_OBJECT('id':%ID,'day':Day,'starttime':StartTime,'task':Task,'category':Category,'iswork':IsWork) AS t FROM TimeTracker.Task"
+    Set tSQL="SELECT JSON_OBJECT('id':%ID,'day':%ODBCOUT(Day),'start':$EXTRACT(%External(StartTime),1,5),'task':Task,'category':Category,'isWork':IsWork) AS t FROM TimeTracker.Task"
     Set tValArray=""
     Set tWhere=""
-    Set pWhere={}.%FromJSON(pWhere)
     If $ISOBJECT(pWhere) && $ISOBJECT(pWhere.filters) {
         Set tWhereIterator = pWhere.filters.%GetIterator()
         While tWhereIterator.%GetNext(.key,.val) {
             Set tFilterIterator = val.%GetIterator()
             Do tFilterIterator.%GetNext(.filterName,.filterValue)
-            If ##class(%Dictionary.CompiledProperty).%ExistsId("TimeTracker.Task||"_filterName) {
+            Set filterName=$ZCONVERT($E(filterName,1),"U")_$E(filterName,2,*)
+            If ##class(%Dictionary.CompiledProperty).%ExistsId("TimeTracker.Task||"_filterName) || (filterName="%ID") {
                 If filterValue="" {
                     Set tWhere = $select(tWhere="":" WHERE ",1:" AND ")_"(("_filterName_"= '' ) OR ("_filterName_" IS NULL))"
                 } Else {
+                    If filterName="Day" {
+                        Set filterValue=$zdh(filterValue,3)
+                    }
                     Set tWhere = $select(tWhere="":" WHERE ",1:" AND ")_filterName_"= ?"
                     Set tValArray($i(tValArray)) = filterValue
                 }
@@ -25,8 +28,8 @@ ClassMethod getTasks(pWhere As %DynamicObject) As %DynamicArray
         }
     }
     Set tSQL = tSQL_tWhere
-    Set tSQL=tSQL_" ORDER BY StartTime"
-    Set tSQLRS=##class(%SQL.Statement).%ExecDirect(,.tSQL,tValArray...)
+    Set tSQL=tSQL_" ORDER BY Day,StartTime"
+    Set tSQLRS=##class(%SQL.Statement).%ExecDirect(,tSQL,tValArray...)
     While tSQLRS.%Next() {
         Set tRow = tSQLRS.%Get("t")
         Do tResponse.%Push({}.%FromJSON(tRow))
@@ -42,17 +45,23 @@ ClassMethod getTask(tId) As %DynamicObject
 
 ClassMethod updateTask(tId As %String, pData As %DynamicObject) As %DynamicObject
 {
+    Set tSC = $$$OK
+    Set pData={}.%FromJSON(pData)
     Set tTask = ##class(TimeTracker.Task).%OpenId(tId)
     If tTask="" {
         Set tSC = $$$ERROR($$$GeneralError,"Task not found")
         Quit tSC
     }
-    Set tSC = $$$OK
-    Set tUpdatableProps = $LB("Day","Task","Category")
+    Set tUpdatableProps = $LB("Task","Category","IsWork")
     Set tPropIterator = pData.%GetIterator()
     While tPropIterator.%GetNext(.key,.val) {
+        Set key=$ZCONVERT($E(key,1),"U")_$E(key,2,*)
         If $LISTFIND(tUpdatableProps,key) {
-            Set $PROPERTY(tTask,key) = val
+            If key="Category" {
+                Do $METHOD(tTask,"CategorySetObjectId",val)
+            } Else {
+                Set $PROPERTY(tTask,key) = val
+            }
         }
     }
     Set tSC = tTask.%Save()
@@ -61,17 +70,39 @@ ClassMethod updateTask(tId As %String, pData As %DynamicObject) As %DynamicObjec
 
 ClassMethod addTask(pData As %DynamicObject) As %DynamicObject
 {
-    Set tSC = $$$OK
-    Set tSC= ##class(TimeTracker.Task).AddTask(
-        pData.%Get("day")
+    Set tRet={}
+    Set pData={}.%FromJSON(pData)
+    Set tTask=##class(TimeTracker.Task).AddTask(
+        pData.%Get("date"),
+        pData.%Get("start"),
+        pData.%Get("task"),
+        pData.%Get("category"),
+        pData.%Get("isWork")
     )
-    Quit {"status": ($SYSTEM.Status.GetErrorText(tSC))}
+    If $ISOBJECT(tTask) {
+        Set tRet=##class(TimeTracker.REST.impl).getTask(tTask.%Id()).%ToJSON()
+    }
+    Return tRet
 }
 
 ClassMethod deleteTask(tId) As %DynamicObject
 {
     Set tSC = ##class(TimeTracker.Task).%DeleteId(tId)
     Set tResponse = {"status": ($SYSTEM.Status.GetErrorText(tSC))}
+    Quit tResponse
+}
+
+ClassMethod getCategories() As %DynamicArray
+{
+    Set tSC = $$$OK
+    Set tResponse = []
+    Set tSQL="SELECT JSON_OBJECT('id':%ID,'name':Name) AS t FROM TimeTracker.Category"
+    Set tValArray=""
+    Set tSQLRS=##class(%SQL.Statement).%ExecDirect(,.tSQL)
+    While tSQLRS.%Next() {
+        Set tRow = tSQLRS.%Get("t")
+        Do tResponse.%Push({}.%FromJSON(tRow))
+    }
     Quit tResponse
 }
 
