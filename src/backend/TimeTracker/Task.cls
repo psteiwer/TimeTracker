@@ -44,6 +44,20 @@ ClassMethod AddTask(pDay, pStartTime, pTask, pCategory, pIsWork) As TimeTracker.
     Return tRet
 }
 
+ClassMethod GetTasksSummary(pWhere As %DynamicObject) As %DynamicObject
+{
+    Set tSummary={}
+    Set tTasks=##class(TimeTracker.REST.impl).getTasks(pWhere)
+    Set tTasksIterator=tTasks.%GetIterator()
+    While tTasksIterator.%GetNext(.key,.val) {
+        Set tTime=$PROPERTY(tSummary,val.task)
+        zw tTime
+        Set $PROPERTY(tSummary,val.task)=$i(tTime,15)
+        zw $PROPERTY(tSummary,val.task)
+    }
+    Return tSummary
+}
+
 Storage Default
 {
 <Data name="TaskDefaultData">
