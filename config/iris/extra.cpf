@@ -10,10 +10,11 @@ CreateNamespace:Name=TIMETRACKER,Globals=TIMETRACKER
 # Import Classes
 Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.OBJ,MethodName="ImportDir",Arg1="/src/",Arg2="",Arg3="ck",Arg4="",Arg5=1
 
-# Create Web App
-CreateApplication:Name=/csp/timetracker,Description="CSP app",NameSpace=TIMETRACKER,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
-CreateApplication:Name=/api/timetracker,Description="API for serving REST",NameSpace=TIMETRACKER,Path=/src/web,DispatchClass=TimeTracker.REST.disp,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
-
 # Create Role and permissions
-CreateRole:Name=TimeTrackerApp,Description="Role for the app",Resources="%DB_%DEFAULT:RW,%DB_TIMETRACKER:RW"
+CreateRole:Name=TimeTrackerApp,Description="Role for the app",Resources="%DB_%DEFAULT:RW,%DB_TIMETRACKER:RW,%DeepSee_Admin:U,%DeepSee_AnalyzerEdit:U,%DeepSee_ArchitectEdit:U,%DeepSee_ListingGroupEdit:U,%DeepSee_PortalEdit:U"
 Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.SQL.Security,MethodName="GrantPrivilege",Arg1="*",Arg2="TimeTracker",Arg3="SCHEMA",Arg4="TimeTrackerApp"
+Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.SQL.Security,MethodName="GrantPrivilege",Arg1="*",Arg2="TimeTracker_Cubes_Tasks",Arg3="SCHEMA",Arg4="TimeTrackerApp"
+
+# Create Web App
+CreateApplication:Name=/csp/timetracker,Description="CSP app",NameSpace=TIMETRACKER,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT:TimeTrackerApp",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1,DeepSeeEnabled=1
+CreateApplication:Name=/api/timetracker,Description="API for serving REST",NameSpace=TIMETRACKER,Path=/src/web,DispatchClass=TimeTracker.REST.disp,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT:TimeTrackerApp",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
