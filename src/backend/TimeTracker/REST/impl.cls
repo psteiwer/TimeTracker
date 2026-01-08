@@ -87,8 +87,12 @@ ClassMethod addTask(pData As %DynamicObject) As %DynamicObject
 
 ClassMethod deleteTask(tId) As %DynamicObject
 {
+    Set tStatusText="Task "_tId_" deleted successfully."
     Set tSC = ##class(TimeTracker.Task).%DeleteId(tId)
-    Set tResponse = {"status": ($SYSTEM.Status.GetErrorText(tSC))}
+    If $$$ISERR(tSC) {
+        Set tStatusText=$SYSTEM.Status.GetErrorText(tSC)
+    }
+    Set tResponse = {"status": (tStatusText)}
     Quit tResponse
 }
 
