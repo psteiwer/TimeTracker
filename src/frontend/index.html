@@ -11,6 +11,12 @@
     .task-input { min-width: 260px; }
     .category-select { min-width: 180px; }
     code { font-size: 0.9em; }
+
+    tr.current-slot {
+      background-color: #e9f7ef; /* very light green */
+      outline: 2px solid #b7e4c7;
+      outline-offset: -2px;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +106,13 @@
       : slotsBetween(WORKDAY_START, WORKDAY_END);
   }
 
+  function currentTimeSlotHHMM() {
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const slotStart = Math.floor(mins / 15) * 15;
+    return `${pad(Math.floor(slotStart / 60))}:${pad(slotStart % 60)}`;
+  }
+
   // ================== API HELPERS ==================
   async function get(url) {
     const r = await fetch(url, { headers: { "Accept": "application/json" } });
@@ -167,6 +180,20 @@
         </td>
       </tr>
     `).join("");
+    highlightCurrentSlot();
+  }
+
+  function highlightCurrentSlot() {
+    // Clear existing highlight
+    tbody.querySelectorAll("tr.current-slot")
+        .forEach(tr => tr.classList.remove("current-slot"));
+
+    const slot = currentTimeSlotHHMM();
+
+    const row = tbody.querySelector(`tr[data-start="${slot}"]`);
+    if (row) {
+      row.classList.add("current-slot");
+    }
   }
 
   // ================== LOAD / OVERLAY ==================
@@ -336,6 +363,7 @@
   // initial label
   toggleBtn.textContent = "Show full day";
   loadDay(dateInput.value);
+  setInterval(highlightCurrentSlot, 60 * 1000);
 })();
 </script>
 </body>
