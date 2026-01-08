@@ -258,19 +258,7 @@
 
     // Try entries overlay (entries API can return [] and that's fine)
     try {
-      const existing = await post(
-        API.entries(),
-        {
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            filters: [
-              { day: date }
-            ]
-          })
-        }
-      );
+      const existing = await post(API.entries(), { filters: [{ Day: date }] });
       const byStart = new Map(existing.map(e => [e.start, e]));
 
       for (const row of rows) {
