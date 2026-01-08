@@ -1,6 +1,8 @@
 Class TimeTracker.Task Extends %Persistent
 {
 
+Parameter DSTIME = "auto";
+
 Property Day As %Date;
 
 Property StartTime As %Time;
