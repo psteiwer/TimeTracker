@@ -46,7 +46,7 @@ XData Cube [ XMLNamespace = "http://www.intersystems.com/deepsee" ]
   </measure>
   <measure name="Hours" disabled="false" sourceExpression=".25" aggregate="SUM" type="number" hidden="false" searchable="false" factNumber="2">
   </measure>
-  <listing name="Listing" disabled="false" listingType="table" fieldList="%ID,Day,StartTime,Category-&gt;Name,Task,IsWork" selectMode="2">
+  <listing name="Listing" disabled="false" listingType="table" fieldList="%ID,Day,StartTime,Category-&gt;Name,Task,IsWork" orderBy="Day,StartTime" selectMode="2">
   </listing>
 </cube>
 }
