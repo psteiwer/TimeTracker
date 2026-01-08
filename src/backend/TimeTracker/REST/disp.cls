@@ -25,7 +25,7 @@ ClassMethod getTasks() As %Status
     Try {
         Do ##class(%REST.Impl).%SetContentType("application/json")
         If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
-        Set response=##class(TimeTracker.REST.impl).getTasks({}.%FromJSON({}.%FromJSON(%request.Content).body))
+        Set response=##class(TimeTracker.REST.impl).getTasks({}.%FromJSON(%request.Content))
         Do ##class(%REST.Impl).%WriteResponse(response)
     } Catch (ex) {
         Do ##class(%REST.Impl).%SetStatusCode("400")
