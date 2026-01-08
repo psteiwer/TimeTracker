@@ -42,6 +42,7 @@
           <th>Task</th>
           <th style="width:220px;">Category</th>
           <th style="width:90px;" class="text-center">IsWork</th>
+          <th style="width:90px;" class="text-center">Clear</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -58,6 +59,7 @@
     categories: () => `${API_BASE}/categories`,
     putEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
     postEntry: () => `${API_BASE}/task`,
+    deleteEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
   };
 
   // Default visible range: 08:45–17:15 (i.e., last slot starts 17:00)
@@ -140,6 +142,14 @@
     return r.json();
   }
 
+  async function del(url) {
+    const r = await fetch(url, {
+      method: "DELETE",
+      headers: { "Accept": "application/json" }
+    });
+    if (!r.ok) throw new Error(`DELETE ${r.status}`);
+  }
+
   // ================== RENDER ==================
   function escapeHtml(s) {
     return String(s ?? "").replace(/[&<>"']/g, m =>
@@ -178,6 +188,16 @@
                  data-field="isWork"
                  ${r.isWork ? "checked" : ""}>
         </td>
+
+        <td class="text-center">
+          <button
+            class="btn btn-sm btn-outline-danger clear-btn"
+            data-action="clear"
+            ${r.id ? "" : "disabled"}
+            title="Clear this time slot">
+            ✕
+          </button>
+        </td>
       </tr>
     `).join("");
     highlightCurrentSlot();
@@ -194,6 +214,14 @@
     if (row) {
       row.classList.add("current-slot");
     }
+  }
+
+  function enableClearButtonForStart(start) {
+    const tr = tbody.querySelector(`tr[data-start="${start}"]`);
+    if (!tr) return;
+    const btn = tr.querySelector(`button[data-action="clear"]`);
+    if (!btn) return;
+    btn.disabled = false;
   }
 
   // ================== LOAD / OVERLAY ==================
@@ -304,6 +332,7 @@
       } else {
         const created = await post(API.postEntry(), payload);
         row.id = created?.id;
+        if (row.id) enableClearButtonForStart(row.start);
       }
       status.textContent = "";
     } catch (e) {
@@ -349,6 +378,38 @@
     showFullDay = !showFullDay;
     toggleBtn.textContent = showFullDay ? "Show workday only" : "Show full day";
     await loadDay(dateInput.value); // rebuild visible rows + overlay entries
+  });
+
+  tbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-action='clear']");
+    if (!btn) return;
+
+    const tr = btn.closest("tr");
+    const start = tr.dataset.start;
+    const row = findRow(start);
+    if (!row) return;
+
+    // Optional confirmation
+    if (!confirm(`Clear entry for ${start}?`)) return;
+
+    try {
+      // Delete from backend if it exists
+      if (row.id) {
+        await del(API.deleteEntry(row.id));
+      }
+
+      // Clear local row state
+      row.id = undefined;
+      row.task = "";
+      row.category = "";
+      row.isWork = false;
+
+      render();
+      status.textContent = "";
+    } catch (err) {
+      console.error(err);
+      status.textContent = `Failed to clear ${start}`;
+    }
   });
 
   // ================== INIT ==================
