@@ -16,12 +16,29 @@ ClassMethod getTasks(pWhere As %DynamicObject) As %DynamicArray
             Set filterName=$ZCONVERT($E(filterName,1),"U")_$E(filterName,2,*)
             If ##class(%Dictionary.CompiledProperty).%ExistsId("TimeTracker.Task||"_filterName) || (filterName="%ID") {
                 If filterValue="" {
-                    Set tWhere = $select(tWhere="":" WHERE ",1:" AND ")_"(("_filterName_"= '' ) OR ("_filterName_" IS NULL))"
+                    Set tWhere = tWhere_$select(tWhere="":" WHERE ",1:" AND ")_"(("_filterName_"= '' ) OR ("_filterName_" IS NULL))"
+                } ElseIf $ISOBJECT(filterValue) && filterValue.%IsA("%DynamicObject") { 
+                    Set tDynamicIterator=filterValue.%GetIterator()
+                    While tDynamicIterator.%GetNext(.dynKey,.dynVal) {
+                        Set tWhere = tWhere_$select(tWhere="":" WHERE ",1:" AND ")_filterName_"->"_dynKey_"= ?"
+                        Set tValArray($i(tValArray)) = dynVal
+                    }
+                } ElseIf $ISOBJECT(filterValue) && filterValue.%IsA("%DynamicArray") { 
+                    Set tInList=""
+                    Set tDynamicIterator=filterValue.%GetIterator()
+                    While tDynamicIterator.%GetNext(.dynKey,.dynVal) {
+                        If filterName="Day" {
+                            Set dynVal=$zdh(dynVal,3)
+                        }
+                        Set tInList=tInList_$lb(dynVal)
+                    }
+                    Set tWhere = tWhere_$select(tWhere="":" WHERE ",1:" AND ")_filterName_" %INLIST ?"
+                    Set tValArray($i(tValArray)) = tInList
                 } Else {
                     If filterName="Day" {
                         Set filterValue=$zdh(filterValue,3)
                     }
-                    Set tWhere = $select(tWhere="":" WHERE ",1:" AND ")_filterName_"= ?"
+                    Set tWhere = tWhere_$select(tWhere="":" WHERE ",1:" AND ")_filterName_"= ?"
                     Set tValArray($i(tValArray)) = filterValue
                 }
             }
