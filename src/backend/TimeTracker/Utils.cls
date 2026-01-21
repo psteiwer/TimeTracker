@@ -7,7 +7,7 @@ ClassMethod TextReport(pStartDate = {$h-5}, pEndDate = {$h}) As %Stream.TmpChara
     Do tReport.WriteLine("// Week "_$zd(pStartDate,3)_" to "_$zd(pEndDate,3))
     Set tTotal=0
     For i=pStartDate:1:pEndDate {
-        Set tWhere={"filters":[{"Day":($zd(i,3))}]}
+        Set tWhere={"filters":[{"Day":($zd(i,3))}, {"Category":{"IncludeInSummary":1}}]}
         Set tTasks=##class(TimeTracker.Task).GetTasksSummary(tWhere)
         Do tReport.WriteLine("")
         Do tReport.WriteLine($zd(i,12))

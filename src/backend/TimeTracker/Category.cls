@@ -3,6 +3,8 @@ Class TimeTracker.Category Extends %Persistent
 
 Property Name As %String;
 
+Property IncludeInSummary As %Boolean [ InitialExpression = 0 ];
+
 ClassMethod AddCategory(pName) As TimeTracker.Category
 {
     Set tCategory=##class(TimeTracker.Category).%New()
@@ -24,6 +26,9 @@ Storage Default
 </Value>
 <Value name="2">
 <Value>Name</Value>
+</Value>
+<Value name="3">
+<Value>IncludeInSummary</Value>
 </Value>
 </Data>
 <DataLocation>^TimeTracker.CategoryD</DataLocation>
