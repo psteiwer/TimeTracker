@@ -63,8 +63,10 @@
   };
 
   // Default visible range: 08:45–17:15 (i.e., last slot starts 17:00)
-  const WORKDAY_START = "08:45";
-  const WORKDAY_END   = "17:15"; // end boundary (exclusive)
+  // ================== SETTINGS ==================
+  let SLOT_DURATION = 15;
+  let WORKDAY_START = "08:45"; // First slot start
+  let WORKDAY_END   = "17:15"; // Last slot start
 
   // ================== STATE ==================
   let showFullDay = false;
@@ -96,7 +98,7 @@
     const start = toMinutes(startHHMM);
     const end = toMinutes(endHHMM);
     const slots = [];
-    for (let t = start; t < end; t += 15) {
+    for (let t = start; t < end; t += SLOT_DURATION) {
       slots.push(`${pad(Math.floor(t / 60))}:${pad(t % 60)}`);
     }
     return slots;
@@ -111,7 +113,7 @@
   function currentTimeSlotHHMM() {
     const now = new Date();
     const mins = now.getHours() * 60 + now.getMinutes();
-    const slotStart = Math.floor(mins / 15) * 15;
+    const slotStart = Math.floor(mins / SLOT_DURATION) * SLOT_DURATION;
     return `${pad(Math.floor(slotStart / 60))}:${pad(slotStart % 60)}`;
   }
 
@@ -161,7 +163,7 @@
     tbody.innerHTML = rows.map(r => `
       <tr data-start="${r.start}">
         <td><code>${r.start}</code></td>
-        <td><code>${addMinutes(r.start, 15)}</code></td>
+        <td><code>${addMinutes(r.start, SLOT_DURATION)}</code></td>
 
         <td>
           <input class="form-control form-control-sm task-input"
@@ -283,7 +285,7 @@
     return {
       date: dateInput.value,
       start: row.start,
-      end: addMinutes(row.start, 15),
+      duration: SLOT_DURATION,
       task: row.task,
       category: row.category,
       isWork: row.isWork,
