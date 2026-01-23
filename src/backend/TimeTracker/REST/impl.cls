@@ -5,7 +5,7 @@ ClassMethod getTasks(pWhere As %DynamicObject) As %DynamicArray
 {
     Set tSC = $$$OK
     Set tResponse = []
-    Set tSQL="SELECT JSON_OBJECT('id':%ID,'day':%ODBCOUT(Day),'start':$EXTRACT(%External(StartTime),1,5),'task':Task,'category':Category,'isWork':IsWork) AS t FROM TimeTracker.Task"
+    Set tSQL="SELECT JSON_OBJECT('id':%ID,'day':%ODBCOUT(Day),'start':$EXTRACT(%External(StartTime),1,5),'duration':Duration,'task':Task,'category':Category,'isWork':IsWork) AS t FROM TimeTracker.Task"
     Set tValArray=""
     Set tWhere=""
     If $ISOBJECT(pWhere) && $ISOBJECT(pWhere.filters) {
@@ -92,6 +92,7 @@ ClassMethod addTask(pData As %DynamicObject) As %DynamicObject
     Set tTask=##class(TimeTracker.Task).AddTask(
         pData.%Get("date"),
         pData.%Get("start"),
+        pData.%Get("duration"),
         pData.%Get("task"),
         pData.%Get("category"),
         pData.%Get("isWork")

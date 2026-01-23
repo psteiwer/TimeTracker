@@ -7,6 +7,8 @@ Property Day As %Date;
 
 Property StartTime As %Time;
 
+Property Duration As %Integer;
+
 Property Task As %String;
 
 Property Category As TimeTracker.Category;
@@ -20,6 +22,7 @@ ClassMethod UpdateTask(pId, pObj) As %Status
     Set tTask=##class(TimeTracker.Task).%OpenId(pId)
     Set:pObj.day tTask.Day=$zdh(pObj.day,3)
     Set:pObj.start tTask.StartTime=$zth(pObj.start,3)
+    Set:pObj.duration tTask.Duration=pObj.duration
     Set:pObj.task tTask.Task=pObj.task
     Do:pObj.category tTask.CategorySetObjectId(pObj.category)
     Set:pObj.isWork tTask.IsWork=pObj.isWork
@@ -28,13 +31,14 @@ ClassMethod UpdateTask(pId, pObj) As %Status
     Return tSC
 }
 
-ClassMethod AddTask(pDay, pStartTime, pTask, pCategory, pIsWork) As TimeTracker.Task
+ClassMethod AddTask(pDay, pStartTime, pDuration, pTask, pCategory, pIsWork) As TimeTracker.Task
 {
     Set tRet=""
 
     Set tTask=##class(TimeTracker.Task).%New()
     Set tTask.Day=$zdh(pDay,3)
     Set tTask.StartTime=$zth(pStartTime,3)
+    Set tTask.Duration=pDuration
     Set tTask.Task=pTask
     Do tTask.CategorySetObjectId(pCategory)
     Set tTask.IsWork=pIsWork
@@ -54,7 +58,7 @@ ClassMethod GetTasksSummary(pWhere As %DynamicObject) As %DynamicObject
     While tTasksIterator.%GetNext(.key,.val) {
         Set tTime=$PROPERTY(tSummary,val.task)
         zw tTime
-        Set $PROPERTY(tSummary,val.task)=$i(tTime,15)
+        Set $PROPERTY(tSummary,val.task)=$i(tTime,val.duration)
         zw $PROPERTY(tSummary,val.task)
     }
     Return tSummary
@@ -80,6 +84,9 @@ Storage Default
 </Value>
 <Value name="6">
 <Value>IsWork</Value>
+</Value>
+<Value name="7">
+<Value>Duration</Value>
 </Value>
 </Data>
 <DataLocation>^TimeTracker.TaskD</DataLocation>
