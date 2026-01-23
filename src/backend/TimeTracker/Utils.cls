@@ -1,5 +1,36 @@
-Class src.backend.TimeTracker.Utils Extends %RegisteredObject
+Class TimeTracker.Utils Extends %RegisteredObject
 {
+
+ClassMethod ConfigureDefaultSettings(pSettingsFile = "") As %Status
+{
+    If pSettingsFile="" {
+        Quit $$$ERROR($$$GeneralError,"Settings File Required")
+    }
+
+    Set tSettings={}.%FromJSONFile(pSettingsFile)
+
+    Set tSettingsIterator=tSettings.%GetIterator()
+    While tSettingsIterator.%GetNext(.key, .value) {
+        If ..GetSetting(key)="" {
+            Do ..SetSetting(key, value)
+        }
+    }    
+
+    Quit $$$OK
+}
+
+ClassMethod SetSetting(pSetting, pValue)
+{
+    Set tPrevious=..GetSetting(pSetting)
+    Set ^TimeTracker.Settings(pSetting)=pValue
+
+    Quit tPrevious
+}
+
+ClassMethod GetSetting(pSetting)
+{
+    Quit $G(^TimeTracker.Settings(pSetting))
+}
 
 ClassMethod TextReport(pStartDate = {$h-5}, pEndDate = {$h}) As %Stream.TmpCharacter
 {

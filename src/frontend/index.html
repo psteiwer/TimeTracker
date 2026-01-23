@@ -60,6 +60,7 @@
     putEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
     postEntry: () => `${API_BASE}/task`,
     deleteEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
+    settings: () => `${API_BASE}/settings`,
   };
 
   // Default visible range: 08:45–17:15 (i.e., last slot starts 17:00)
@@ -67,6 +68,14 @@
   let SLOT_DURATION = 15;
   let WORKDAY_START = "08:45"; // First slot start
   let WORKDAY_END   = "17:15"; // Last slot start
+
+  async function loadSettings() {
+    const settings = await get(API.settings());
+
+    if (Number.isFinite(settings.duration)) SLOT_DURATION = settings.duration;
+    if (typeof settings.startTime === "string") WORKDAY_START = settings.startTime;
+    if (typeof settings.endTime === "string") WORKDAY_END = settings.endTime;
+  }
 
   // ================== STATE ==================
   let showFullDay = false;
@@ -408,13 +417,24 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
 
-  dateInput.value = todayISO();
-  dateInput.addEventListener("change", () => loadDay(dateInput.value));
+  async function init() {
+    // Load settings first (but don't hard-fail)
+    try {
+      await loadSettings();
+    } catch (e) {
+      console.warn("Settings load failed; using defaults.", e);
+    }
+    
+    dateInput.value = todayISO();
+    dateInput.addEventListener("change", () => loadDay(dateInput.value));
 
-  // initial label
-  toggleBtn.textContent = "Show full day";
-  loadDay(dateInput.value);
-  setInterval(highlightCurrentSlot, 60 * 1000);
+    // initial label
+    toggleBtn.textContent = "Show full day";
+    loadDay(dateInput.value);
+    setInterval(highlightCurrentSlot, 60 * 1000);
+  }
+
+  init();
 })();
 </script>
 </body>

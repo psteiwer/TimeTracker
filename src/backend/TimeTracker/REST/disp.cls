@@ -17,6 +17,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/category" Method="post" Call="addCategory"/>
   <Route Url="/category/:id" Method="put" Call="updateCategory"/>
   <Route Url="/category/:id" Method="delete" Call="deleteCategory"/>
+
+  <Route Url="/settings" Method="get" Call="getSettings"/>
+  <Route Url="/settings/:setting" Method="get" Call="getSetting"/>
+  <Route Url="/settings/:setting" Method="put" Call="updateSetting"/>
 </Routes>
 }
 
@@ -96,6 +100,48 @@ ClassMethod getCategories() As %Status
         Do ##class(%REST.Impl).%SetContentType("application/json")
         If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
         Set response=##class(TimeTracker.REST.impl).getCategories()
+        Do ##class(%REST.Impl).%WriteResponse(response)
+    } Catch (ex) {
+        Do ##class(%REST.Impl).%SetStatusCode("400")
+        return {"errormessage": "Client error"}
+    }
+    Quit $$$OK
+}
+
+ClassMethod getSettings() As %Status
+{
+    Try {
+        Do ##class(%REST.Impl).%SetContentType("application/json")
+        If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
+        Set response=##class(TimeTracker.REST.impl).getSettings()
+        Do ##class(%REST.Impl).%WriteResponse(response)
+    } Catch (ex) {
+        Do ##class(%REST.Impl).%SetStatusCode("400")
+        return {"errormessage": "Client error"}
+    }
+    Quit $$$OK
+}
+
+ClassMethod getSetting(pSetting) As %Status
+{
+    Try {
+        Do ##class(%REST.Impl).%SetContentType("application/json")
+        If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
+        Set response=##class(TimeTracker.REST.impl).getSetting(pSetting)
+        Do ##class(%REST.Impl).%WriteResponse(response)
+    } Catch (ex) {
+        Do ##class(%REST.Impl).%SetStatusCode("400")
+        return {"errormessage": "Client error"}
+    }
+    Quit $$$OK
+}
+
+ClassMethod updateSetting(pSetting) As %Status
+{
+    Try {
+        Do ##class(%REST.Impl).%SetContentType("application/json")
+        If '##class(%REST.Impl).%CheckAccepts("application/json") Do ##class(%REST.Impl).%ReportRESTError(..#HTTP406NOTACCEPTABLE,$$$ERROR($$$RESTBadAccepts)) Quit
+        Set response=##class(TimeTracker.REST.impl).updateSetting(pSetting,%request.Content)
         Do ##class(%REST.Impl).%WriteResponse(response)
     } Catch (ex) {
         Do ##class(%REST.Impl).%SetStatusCode("400")

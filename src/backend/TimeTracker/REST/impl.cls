@@ -128,4 +128,27 @@ ClassMethod getCategories() As %DynamicArray
     Quit tResponse
 }
 
+ClassMethod getSettings() As %DynamicObject
+{
+    Set tResponse = {}
+    Set tResponse.duration=##class(TimeTracker.Utils).GetSetting("duration")
+    Set tResponse.startTime=##class(TimeTracker.Utils).GetSetting("startTime")
+    Set tResponse.endTime=##class(TimeTracker.Utils).GetSetting("endTime")
+    Quit tResponse
+}
+
+ClassMethod getSetting(pSetting) As %DynamicObject
+{
+    Set tResponse = {}
+    Set $PROPERTY(tResponse,pSetting)=##class(TimeTracker.Utils).GetSetting(pSetting)
+    Quit tResponse
+}
+
+ClassMethod updateSetting(pSetting, pData As %DynamicObject) As %DynamicObject
+{
+    Set tResponse = {}
+    Do ##class(TimeTracker.Utils).SetSetting(pSetting,pData.value)
+    Quit tResponse
+}
+
 }

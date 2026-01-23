@@ -18,3 +18,6 @@ Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.SQL.Security,MethodName="Grant
 # Create Web App
 CreateApplication:Name=/csp/timetracker,Description="CSP app",NameSpace=TIMETRACKER,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT:TimeTrackerApp",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1,DeepSeeEnabled=1
 CreateApplication:Name=/api/timetracker,Description="API for serving REST",NameSpace=TIMETRACKER,Path=/src/web,DispatchClass=TimeTracker.REST.disp,MatchRoles=":%DB_IRISLOCALDATA:%DB_TIMETRACKER:%DB_%DEFAULT:TimeTrackerApp",CookiePath="/",Timeout=43200,SessionScope=1,UserCookieScope=1
+
+# Initialize App
+Execute:Namespace="TIMETRACKER",ClassName=TimeTracker.Utils,MethodName="ConfigureDefaultSettings",Arg1="/config/defaultSettings.json"
