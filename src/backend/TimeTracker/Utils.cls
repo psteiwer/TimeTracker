@@ -32,7 +32,7 @@ ClassMethod GetSetting(pSetting)
     Quit $G(^TimeTracker.Settings(pSetting))
 }
 
-ClassMethod TextReport(pStartDate = {$h-5}, pEndDate = {$h}) As %Stream.TmpCharacter
+ClassMethod TextReport(pStartDate = {$h-4}, pEndDate = {$h}) As %Stream.TmpCharacter
 {
     Set tReport=##class(%Stream.TmpCharacter).%New()
     Do tReport.WriteLine("// Week "_$zd(pStartDate,3)_" to "_$zd(pEndDate,3))
