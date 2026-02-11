@@ -17,6 +17,15 @@
       outline: 2px solid #b7e4c7;
       outline-offset: -2px;
     }
+
+    .icon-btn {
+      width: 32px;
+      height: 28px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -42,7 +51,7 @@
           <th>Task</th>
           <th style="width:220px;">Category</th>
           <th style="width:90px;" class="text-center">IsWork</th>
-          <th style="width:90px;" class="text-center">Clear</th>
+          <th style="width:90px;" class="text-center">Actions</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -82,6 +91,8 @@
   let rows = [];        // current visible rows
   let categories = [];
   const saveTimers = new Map();
+  let clipboard = null;
+  let copyMode = false;
 
   // ================== DOM ==================
   const tbody = document.getElementById("tbody");
@@ -124,6 +135,95 @@
     const mins = now.getHours() * 60 + now.getMinutes();
     const slotStart = Math.floor(mins / SLOT_DURATION) * SLOT_DURATION;
     return `${pad(Math.floor(slotStart / 60))}:${pad(slotStart % 60)}`;
+  }
+
+  // ================== UI HELPERS ==================
+  function rowHasData(row) {
+    return row.task.trim() !== "" || row.category.trim() !== "" || row.isWork !== false;
+  }
+
+  function setCopyMode(sourceRowOrNull) {
+    if (!sourceRowOrNull) {
+      clipboard = null;
+      copyMode = false;
+    } else {
+      clipboard = {
+        sourceStart: sourceRowOrNull.start,
+        task: sourceRowOrNull.task,
+        category: sourceRowOrNull.category,
+        isWork: sourceRowOrNull.isWork
+      };
+      copyMode = true;
+    }
+    updateCopyPasteUI();
+  }
+
+  function updateCopyPasteUI() {
+    for (const row of rows) {
+      const tr = tbody.querySelector(`tr[data-start="${row.start}"]`);
+      if (!tr) continue;
+
+      const copyBtn = tr.querySelector(`button[data-action="copy"]`);
+      const pasteBtn = tr.querySelector(`button[data-action="paste"]`);
+
+      const isSource = copyMode && clipboard?.sourceStart === row.start;
+      const canCopy = rowHasData(row);
+
+      // ---------- COPY BUTTON ----------
+      if (copyBtn) {
+        if (!copyMode) {
+          // Normal mode → show copy buttons normally
+          copyBtn.classList.remove("d-none");
+          copyBtn.disabled = !canCopy;
+          copyBtn.classList.remove("btn-primary");
+          copyBtn.classList.add("btn-outline-secondary");
+        } else {
+          if (isSource) {
+            // Only show the selected row's copy button
+            copyBtn.classList.remove("d-none");
+            copyBtn.disabled = false;
+            copyBtn.classList.remove("btn-outline-secondary");
+            copyBtn.classList.add("btn-primary"); // visually active
+          } else {
+            // Hide all other copy buttons
+            copyBtn.classList.add("d-none");
+          }
+        }
+      }
+
+      // ---------- PASTE BUTTON ----------
+      if (pasteBtn) {
+        if (copyMode && !isSource) {
+          pasteBtn.classList.remove("d-none");
+          pasteBtn.disabled = false;
+        } else {
+          pasteBtn.classList.add("d-none");
+        }
+      }
+    }
+  }
+
+  function applyClipboardToRow(row) {
+    if (!clipboard) return;
+
+    row.task = clipboard.task ?? "";
+    row.category = clipboard.category ?? "";
+    row.isWork = (clipboard.isWork ?? false) === true;
+
+    // Update DOM inputs for this row only (no render)
+    const tr = tbody.querySelector(`tr[data-start="${row.start}"]`);
+    if (tr) {
+      const taskInput = tr.querySelector(`input[data-field="task"]`);
+      const catSelect = tr.querySelector(`select[data-field="category"]`);
+      const isWorkCb  = tr.querySelector(`input[data-field="isWork"]`);
+
+      if (taskInput) taskInput.value = row.task;
+      if (catSelect) catSelect.value = row.category;
+      if (isWorkCb)  isWorkCb.checked = row.isWork;
+    }
+
+    // Save the row (creates record if needed)
+    saveRow(row);
   }
 
   // ================== API HELPERS ==================
@@ -201,17 +301,41 @@
         </td>
 
         <td class="text-center">
-          <button
-            class="btn btn-sm btn-outline-danger clear-btn"
-            data-action="clear"
-            ${r.id ? "" : "disabled"}
-            title="Clear this time slot">
-            ✕
-          </button>
+          <div class="d-inline-flex gap-1">
+            <!-- Copy -->
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary icon-btn"
+              data-action="copy"
+              title="Copy this row"
+              ${rowHasData(r) ? "" : "disabled"}>
+              📋
+            </button>
+
+            <!-- Paste (hidden unless copy mode is active; we'll toggle via JS) -->
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-success icon-btn d-none"
+              data-action="paste"
+              title="Paste into this row">
+              📥
+            </button>
+
+            <!-- Clear -->
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger icon-btn"
+              data-action="clear"
+              ${r.id ? "" : "disabled"}
+              title="Clear this time slot">
+              ✕
+            </button>
+          </div>
         </td>
       </tr>
     `).join("");
     highlightCurrentSlot();
+    updateCopyPasteUI();
   }
 
   function highlightCurrentSlot() {
@@ -355,6 +479,7 @@
 
     if (target.dataset.field === "task") {
       row.task = target.value;
+      updateCopyPasteUI();
       debounceSave(row);
     }
   });
@@ -370,6 +495,7 @@
     if (target.dataset.field === "category") row.category = target.value;
     if (target.dataset.field === "isWork") row.isWork = target.checked;
 
+    updateCopyPasteUI();
     saveRow(row);
   });
 
@@ -380,34 +506,57 @@
   });
 
   tbody.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-action='clear']");
+    const btn = e.target.closest("button[data-action]");
     if (!btn) return;
 
+    const action = btn.getAttribute("data-action");
     const tr = btn.closest("tr");
+    if (!tr) return;
+
     const start = tr.dataset.start;
     const row = findRow(start);
     if (!row) return;
 
-    // Optional confirmation
-    if (!confirm(`Clear entry for ${start}?`)) return;
-
-    try {
-      // Delete from backend if it exists
-      if (row.id) {
-        await del(API.deleteEntry(row.id));
+    if (action === "copy") {
+      // Toggle copy mode on/off when clicking the source row copy again
+      const isSource = copyMode && clipboard?.sourceStart === row.start;
+      if (isSource) {
+        setCopyMode(null);
+      } else {
+        if (!rowHasData(row)) return; // should already be disabled, but safe
+        setCopyMode(row);
       }
+      return;
+    }
 
-      // Clear local row state
-      row.id = undefined;
-      row.task = "";
-      row.category = "";
-      row.isWork = false;
+    if (action === "paste") {
+      if (!copyMode || !clipboard) return;
+      // Don't paste onto the source row (paste button hidden anyway)
+      if (clipboard.sourceStart === row.start) return;
 
-      render();
-      status.textContent = "";
-    } catch (err) {
-      console.error(err);
-      status.textContent = `Failed to clear ${start}`;
+      applyClipboardToRow(row);
+      return;
+    }
+
+    if (action === "clear") {
+      if (!confirm(`Clear entry for ${start}?`)) return;
+
+      try {
+        if (row.id) {
+          await del(API.deleteEntry(row.id));
+        }
+
+        row.id = undefined;
+        row.task = "";
+        row.category = "";
+        row.isWork = false;
+
+        render();
+        status.textContent = "";
+      } catch (err) {
+        console.error(err);
+        status.textContent = `Failed to clear ${start}`;
+      }
     }
   });
 
