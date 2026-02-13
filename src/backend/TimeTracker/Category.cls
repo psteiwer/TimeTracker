@@ -5,6 +5,9 @@ Property Name As %String;
 
 Property IncludeInSummary As %Boolean [ InitialExpression = 0 ];
 
+/// Target number of minutes per week
+Property Target As %Integer;
+
 ClassMethod AddCategory(pName) As TimeTracker.Category
 {
     Set tCategory=##class(TimeTracker.Category).%New()
@@ -29,6 +32,9 @@ Storage Default
 </Value>
 <Value name="3">
 <Value>IncludeInSummary</Value>
+</Value>
+<Value name="4">
+<Value>Target</Value>
 </Value>
 </Data>
 <DataLocation>^TimeTracker.CategoryD</DataLocation>

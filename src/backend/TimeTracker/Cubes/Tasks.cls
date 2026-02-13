@@ -6,13 +6,17 @@ Class TimeTracker.Cubes.Tasks Extends %DeepSee.CubeDefinition [ DependsOn = Time
 XData Cube [ XMLNamespace = "http://www.intersystems.com/deepsee" ]
 {
 <cube xmlns="http://www.intersystems.com/deepsee" name="Tasks" displayName="Tasks" disabled="false" abstract="false" sourceClass="TimeTracker.Task" namedFactNums="true" countMeasureName="%COUNT" bucketSize="8" bitmapChunkInMemory="false" precompute="0" disableListingGroups="false" enableSqlRestrict="false">
-  <dimension name="Day" disabled="false" hasAll="false" allCaption="All Day" allDisplayName="Day" sourceProperty="Day" type="time" calendar="gregorian" hidden="false" showHierarchies="default">
+  <dimension name="Date" disabled="false" hasAll="false" allCaption="All Day" allDisplayName="Day" sourceProperty="Day" type="time" calendar="gregorian" iKnowType="entity" hidden="false" showHierarchies="default">
     <hierarchy name="H1" disabled="false" hidden="false">
       <level name="Year" disabled="false" timeFunction="Year" list="false" useDisplayValue="true" useAsFilter="true" hidden="false" factNumber="2">
       </level>
       <level name="Month" disabled="false" timeFunction="MonthYear" list="false" useDisplayValue="true" useAsFilter="true" hidden="false" factNumber="3">
       </level>
       <level name="Day" disabled="false" timeFunction="DayMonthYear" list="false" useDisplayValue="true" useAsFilter="true" hidden="false" factNumber="4">
+      </level>
+    </hierarchy>
+    <hierarchy name="H2" disabled="false" hidden="false">
+      <level name="Week" disabled="false" timeFunction="WeekYear" list="false" useDisplayValue="true" useAsFilter="true" hidden="false" factNumber="9">
       </level>
     </hierarchy>
   </dimension>
@@ -39,6 +43,8 @@ XData Cube [ XMLNamespace = "http://www.intersystems.com/deepsee" ]
       <level name="Category" disabled="false" sourceProperty="Category" list="false" useDisplayValue="true" useAsFilter="true" hidden="false" factNumber="8">
         <property name="Name" disabled="false" sourceProperty="Category.Name" hidden="false" isName="true" isDescription="false" isReference="false" useDisplayValue="false">
         </property>
+        <property name="Target" disabled="false" sourceProperty="Category.Target" hidden="false" isName="false" isDescription="false" isReference="false" useDisplayValue="false">
+        </property>
       </level>
     </hierarchy>
   </dimension>
@@ -46,6 +52,8 @@ XData Cube [ XMLNamespace = "http://www.intersystems.com/deepsee" ]
   </measure>
   <measure name="Hours" disabled="false" sourceExpression=".25" aggregate="SUM" type="number" hidden="false" searchable="false" factNumber="2">
   </measure>
+  <calculatedMember name="PercentOfTarget" disabled="false" dimension="Measures" valueExpression="[Measures].[Minutes]/[Category].[H1].[Category].CurrentMember.Properties(&quot;Target&quot;)" formatString="#.##%" hidden="false">
+  </calculatedMember>
   <listing name="Listing" disabled="false" listingType="table" fieldList="%ID,Day,StartTime,Category-&gt;Name,Task,IsWork" orderBy="Day,StartTime" selectMode="2">
   </listing>
 </cube>
