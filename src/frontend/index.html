@@ -205,6 +205,7 @@
     updateCopyPasteUI();
   }
 
+  // Hides all copy buttons except the selected one when copyMode is active
   function updateCopyPasteUI() {
     for (const row of rows) {
       const tr = tbody.querySelector(`tr[data-start="${row.start}"]`);
@@ -216,29 +217,26 @@
       const isSource = copyMode && clipboard?.sourceStart === row.start;
       const canCopy = rowHasData(row);
 
-      // ---------- COPY BUTTON ----------
       if (copyBtn) {
         if (!copyMode) {
-          // Normal mode → show copy buttons normally
           copyBtn.classList.remove("d-none");
           copyBtn.disabled = !canCopy;
           copyBtn.classList.remove("btn-primary");
           copyBtn.classList.add("btn-outline-secondary");
+          copyBtn.title = "Copy this row";
         } else {
           if (isSource) {
-            // Only show the selected row's copy button
             copyBtn.classList.remove("d-none");
             copyBtn.disabled = false;
             copyBtn.classList.remove("btn-outline-secondary");
-            copyBtn.classList.add("btn-primary"); // visually active
+            copyBtn.classList.add("btn-primary");
+            copyBtn.title = "Exit copy mode";
           } else {
-            // Hide all other copy buttons
             copyBtn.classList.add("d-none");
           }
         }
       }
 
-      // ---------- PASTE BUTTON ----------
       if (pasteBtn) {
         if (copyMode && !isSource) {
           pasteBtn.classList.remove("d-none");
@@ -269,7 +267,7 @@
       if (isWorkCb)  isWorkCb.checked = row.isWork;
     }
 
-    // Save the row (creates record if needed)
+    updateCopyPasteUI();
     saveRow(row);
   }
 
@@ -461,7 +459,7 @@
               📋
             </button>
 
-            <!-- Paste (hidden unless copy mode is active; we'll toggle via JS) -->
+            <!-- Paste (hidden unless copy mode is active; toggled via JS) -->
             <button
               type="button"
               class="btn btn-sm btn-outline-success icon-btn d-none"
@@ -609,6 +607,7 @@
         row.id = created?.id;
         if (row.id) enableClearButtonForStart(row.start);
       }
+      updateCopyPasteUI();
       status.textContent = "";
     } catch (e) {
       console.error(e);
@@ -671,12 +670,11 @@
     if (!row) return;
 
     if (action === "copy") {
-      // Toggle copy mode on/off when clicking the source row copy again
       const isSource = copyMode && clipboard?.sourceStart === row.start;
       if (isSource) {
         setCopyMode(null);
       } else {
-        if (!rowHasData(row)) return; // should already be disabled, but safe
+        if (!rowHasData(row)) return;
         setCopyMode(row);
       }
       return;
@@ -684,9 +682,7 @@
 
     if (action === "paste") {
       if (!copyMode || !clipboard) return;
-      // Don't paste onto the source row (paste button hidden anyway)
       if (clipboard.sourceStart === row.start) return;
-
       applyClipboardToRow(row);
       return;
     }
@@ -697,6 +693,11 @@
       try {
         if (row.id) {
           await del(API.deleteEntry(row.id));
+        }
+
+        // If clearing the source row, exit copy mode to avoid weird state
+        if (copyMode && clipboard?.sourceStart === row.start) {
+          setCopyMode(null);
         }
 
         row.id = undefined;
