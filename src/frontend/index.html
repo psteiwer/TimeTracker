@@ -26,11 +26,41 @@
       align-items: center;
       justify-content: center;
     }
+
+    /* Weekly summary (compact) */
+    .week-row { 
+      display:flex; 
+      align-items:center; 
+      gap:10px; 
+      margin-bottom:6px; 
+    }
+
+    .week-label {
+      width: 120px;              /* slightly narrower label */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.8rem;         /* slightly smaller label too */
+    }
+
+    .week-meta {
+      width: 120px;              /* slightly narrower */
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;       /* prevent wrapping */
+      font-size: 0.75rem;        /* smaller text */
+      line-height: 1;            /* tighter */
+    }
+
+    .progress { 
+      height: 10px; 
+      flex: 1; 
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
     <h1 class="h4 mb-0">Time Tracker</h1>
 
     <input id="dateInput" type="date" class="form-control" style="max-width: 180px;">
@@ -42,6 +72,14 @@
     <span id="status" class="text-muted small"></span>
   </div>
 
+  <div class="mb-3" id="weeklyWrap">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="small text-muted">This week</div>
+      <button class="btn btn-sm btn-outline-secondary" id="weeklyToggleBtn">Hide</button>
+    </div>
+    <div id="weeklyPanel" class="mt-2"></div>
+  </div>
+
   <div class="table-responsive">
     <table class="table table-sm table-hover">
       <thead class="table-light">
@@ -51,7 +89,7 @@
           <th>Task</th>
           <th style="width:220px;">Category</th>
           <th style="width:90px;" class="text-center">IsWork</th>
-          <th style="width:90px;" class="text-center">Actions</th>
+          <th style="width:110px;" class="text-center">Actions</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -71,6 +109,9 @@
     deleteEntry: (id) => `${API_BASE}/task/${encodeURIComponent(id)}`,
     settings: () => `${API_BASE}/settings`,
   };
+
+  // DeepSee MDX endpoint (weekly distribution)
+  const DEEPSEE_PIVOT_URL = "http://localhost:31313/api/deepsee/v3/timetracker/Data/PivotExecute";
 
   // Default visible range: 08:45–17:15 (i.e., last slot starts 17:00)
   // ================== SETTINGS ==================
@@ -99,6 +140,8 @@
   const dateInput = document.getElementById("dateInput");
   const status = document.getElementById("status");
   const toggleBtn = document.getElementById("toggleBtn");
+  const weeklyPanel = document.getElementById("weeklyPanel");
+  const weeklyToggleBtn = document.getElementById("weeklyToggleBtn");
 
   // ================== TIME HELPERS ==================
   const pad = n => String(n).padStart(2, "0");
@@ -259,6 +302,108 @@
       headers: { "Accept": "application/json" }
     });
     if (!r.ok) throw new Error(`DELETE ${r.status}`);
+  }
+
+  // ================== WEEKLY (DeepSee MDX) ==================
+  async function pivotExecute(pivot) {
+    const r = await fetch(DEEPSEE_PIVOT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ PIVOT: pivot })
+    });
+    if (!r.ok) throw new Error(`PivotExecute ${r.status}`);
+    return r.json();
+  }
+
+  function parseDeepSeeWeekly(resp) {
+    const axes = resp?.Result?.Axes ?? [];
+    const axisMeasures = axes.find(a => a["%ID"] === "Axis_1");
+    const axisRows = axes.find(a => a["%ID"] === "Axis_2");
+
+    const colTuples = axisMeasures?.Tuples ?? [];
+    const rowTuples = axisRows?.Tuples ?? [];
+
+    const cells = resp?.Result?.CellData ?? [];
+
+    const colCount = resp?.Info?.ColCount ?? colTuples.length;
+    const rowCount = resp?.Info?.RowCount ?? rowTuples.length;
+
+    const colNames = colTuples.map(t => t?.Members?.[0]?.Name ?? "");
+
+    // Your actual column names:
+    const idxMinutes = colNames.findIndex(n => n === "Minutes");
+    const idxTarget  = colNames.findIndex(n => n === "Target");
+    const idxPercent = colNames.findIndex(n => n === "PercentOfTarget");
+
+    const out = [];
+    for (let r = 0; r < rowCount; r++) {
+      const category = rowTuples[r]?.Members?.[0]?.Name ?? `Row ${r + 1}`;
+      const base = r * colCount;
+
+      const totalMinutes  = idxMinutes >= 0 ? Number(cells[base + idxMinutes]?.ValueLogical ?? 0) : 0;
+      const targetMinutes = idxTarget  >= 0 ? Number(cells[base + idxTarget]?.ValueLogical ?? 0) : 0;
+
+      out.push({ category, totalMinutes, targetMinutes });
+    }
+
+    return out;
+  }
+
+
+  function renderWeeklyPanel(items) {
+    if (!weeklyPanel) return;
+
+    if (!items || items.length === 0) {
+      weeklyPanel.innerHTML = `<div class="small text-muted">No weekly data.</div>`;
+      return;
+    }
+
+    const data = [...items].sort((a,b) => b.totalMinutes - a.totalMinutes);
+
+    weeklyPanel.innerHTML = data.map(d => {
+      const total = Number(d.totalMinutes ?? 0);
+      const target = Number(d.targetMinutes ?? 0);
+
+      // pctToTarget can exceed 1.0
+      const pctToTarget = target > 0 ? (total / target) : 0;
+
+      // Green portion: 0..100% (cap at 100)
+      const pctGreen = Math.max(0, Math.min(100, Math.round(Math.min(pctToTarget, 1) * 100)));
+
+      // Red overage: any percent over 100% (cap the display at +100% over i.e. 200% total)
+      // Example: 200% => red 100. Example: 110% => red 10.
+      const over = Math.max(0, pctToTarget - 1);
+      const pctRed = Math.max(0, Math.min(100, Math.round(over * 100)));
+
+      const pctShown = Math.round(pctToTarget * 100);
+      const meta = `${total} / ${target} min (${pctShown}%)`;
+
+      // If target is 0, show empty bar (avoid divide issues)
+      const showOver = target > 0 && pctRed > 0;
+
+      return `
+        <div class="week-row">
+          <div class="week-label" title="${escapeHtml(d.category)}">${escapeHtml(d.category)}</div>
+
+          <div class="progress" role="progressbar" aria-valuenow="${Math.min(pctShown, 200)}" aria-valuemin="0" aria-valuemax="200">
+            <div class="progress-bar bg-success" style="width:${pctGreen}%"></div>
+            ${showOver ? `<div class="progress-bar bg-danger" style="width:${pctRed}%"></div>` : ``}
+          </div>
+
+          <div class="week-meta text-muted">${escapeHtml(meta)}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+
+  async function loadWeeklyDistribution() {
+    const pivot = "Targets/PercentOfTarget.pivot"
+    const resp = await pivotExecute(pivot);
+    if (resp?.Info?.Error) throw new Error(resp.Info.Error);
+
+    const parsed = parseDeepSeeWeekly(resp);
+    renderWeeklyPanel(parsed);
   }
 
   // ================== RENDER ==================
@@ -560,6 +705,14 @@
     }
   });
 
+  // Weekly panel show/hide
+  weeklyToggleBtn?.addEventListener("click", () => {
+    if (!weeklyPanel || !weeklyToggleBtn) return;
+    const hidden = weeklyPanel.style.display === "none";
+    weeklyPanel.style.display = hidden ? "" : "none";
+    weeklyToggleBtn.textContent = hidden ? "Hide" : "Show";
+  });
+
   // ================== INIT ==================
   function todayISO() {
     const d = new Date();
@@ -580,7 +733,20 @@
     // initial label
     toggleBtn.textContent = "Show full day";
     loadDay(dateInput.value);
+
+    // Weekly chart (non-blocking)
+    safeLoadWeekly();
+
     setInterval(highlightCurrentSlot, 60 * 1000);
+  }
+
+  async function safeLoadWeekly() {
+    try {
+      await loadWeeklyDistribution();
+    } catch (e) {
+      console.warn("Weekly distribution failed to load.", e);
+      if (weeklyPanel) weeklyPanel.innerHTML = `<div class="small text-muted">Weekly summary unavailable.</div>`;
+    }
   }
 
   init();
