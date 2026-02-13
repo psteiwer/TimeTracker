@@ -180,6 +180,10 @@
     return `${pad(Math.floor(slotStart / 60))}:${pad(slotStart % 60)}`;
   }
 
+  function isTodaySelected() {
+    return dateInput.value === todayISO();
+  }
+
   // ================== UI HELPERS ==================
   function rowHasData(row) {
     return row.task.trim() !== "" || row.category.trim() !== "" || row.isWork !== false;
@@ -484,16 +488,19 @@
   }
 
   function highlightCurrentSlot() {
-    // Clear existing highlight
-    tbody.querySelectorAll("tr.current-slot")
+    // Only highlight when viewing today's date
+    if (!isTodaySelected()) {
+      tbody.querySelectorAll("tr.current-slot")
         .forEach(tr => tr.classList.remove("current-slot"));
+      return;
+    }
+
+    tbody.querySelectorAll("tr.current-slot")
+      .forEach(tr => tr.classList.remove("current-slot"));
 
     const slot = currentTimeSlotHHMM();
-
     const row = tbody.querySelector(`tr[data-start="${slot}"]`);
-    if (row) {
-      row.classList.add("current-slot");
-    }
+    if (row) row.classList.add("current-slot");
   }
 
   function enableClearButtonForStart(start) {
@@ -647,7 +654,8 @@
   toggleBtn.addEventListener("click", async () => {
     showFullDay = !showFullDay;
     toggleBtn.textContent = showFullDay ? "Show workday only" : "Show full day";
-    await loadDay(dateInput.value); // rebuild visible rows + overlay entries
+    await loadDay(dateInput.value);
+    highlightCurrentSlot();
   });
 
   tbody.addEventListener("click", async (e) => {
@@ -720,19 +728,22 @@
   }
 
   async function init() {
-    // Load settings first (but don't hard-fail)
     try {
       await loadSettings();
     } catch (e) {
       console.warn("Settings load failed; using defaults.", e);
     }
-    
-    dateInput.value = todayISO();
-    dateInput.addEventListener("change", () => loadDay(dateInput.value));
 
-    // initial label
+    dateInput.value = todayISO();
+    dateInput.addEventListener("change", async () => {
+      await loadDay(dateInput.value);
+      highlightCurrentSlot();
+    });
+
     toggleBtn.textContent = "Show full day";
-    loadDay(dateInput.value);
+
+    await loadDay(dateInput.value);
+    highlightCurrentSlot();
 
     // Weekly chart (non-blocking)
     safeLoadWeekly();
