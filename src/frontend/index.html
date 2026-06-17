@@ -203,6 +203,7 @@
       copyMode = true;
     }
     updateCopyPasteUI();
+    updateEditLockUI();
   }
 
   // Hides all copy buttons except the selected one when copyMode is active
@@ -269,6 +270,16 @@
 
     updateCopyPasteUI();
     saveRow(row);
+  }
+
+  function updateEditLockUI() {
+    const editableFields = tbody.querySelectorAll(
+      'input[data-field="task"], select[data-field="category"], input[data-field="isWork"]'
+    );
+
+    editableFields.forEach(el => {
+      el.disabled = copyMode;
+    });
   }
 
   // ================== API HELPERS ==================
@@ -483,6 +494,7 @@
     `).join("");
     highlightCurrentSlot();
     updateCopyPasteUI();
+    updateEditLockUI();
   }
 
   function highlightCurrentSlot() {
