@@ -9,6 +9,7 @@ services:
       - ./data:/data
     environment:
       - ISC_CPF_MERGE_FILE=/config/extra.cpf
+      - TZ=America/New_York
   timetracker-webgateway:
     restart: unless-stopped
     image: containers.intersystems.com/intersystems/webgateway:latest-cd
