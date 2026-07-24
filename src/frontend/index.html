@@ -110,8 +110,14 @@
     settings: () => `${API_BASE}/settings`,
   };
 
-  // DeepSee MDX endpoint (weekly distribution)
-  const DEEPSEE_PIVOT_URL = "http://localhost:31313/api/deepsee/v3/timetracker/Data/PivotExecute";
+  // DeepSee REST endpoints
+  const DEEPSEE_BASE = "http://localhost:31313/api/deepsee/v3/timetracker";
+  const DEEPSEE = {
+    pivotExecute:            () => `${DEEPSEE_BASE}/Data/PivotExecute`,
+    getLastUpdate:           () => `${DEEPSEE_BASE}/Command/GetLastUpdate`,
+    setActiveRegistry:       () => `${DEEPSEE_BASE}/Command/SetActiveRegistry`,
+    buildAllRegisteredGroups:() => `${DEEPSEE_BASE}/Command/BuildAllRegisteredGroups`,
+  };
 
   // Default visible range: 08:45–17:15 (i.e., last slot starts 17:00)
   // ================== SETTINGS ==================
@@ -319,7 +325,7 @@
 
   // ================== WEEKLY (DeepSee MDX) ==================
   async function pivotExecute(pivot) {
-    const r = await fetch(DEEPSEE_PIVOT_URL, {
+    const r = await fetch(DEEPSEE.pivotExecute(), {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ PIVOT: pivot })
@@ -413,7 +419,10 @@
   async function loadWeeklyDistribution() {
     const pivot = "Targets/PercentOfTarget.pivot"
     const resp = await pivotExecute(pivot);
-    if (resp?.Info?.Error) throw new Error(resp.Info.Error);
+    if (resp?.Info?.Error) {
+      const errMsg = typeof resp.Info.Error === "string" ? resp.Info.Error : JSON.stringify(resp.Info.Error);
+      throw new Error(errMsg);
+    }
 
     const parsed = parseDeepSeeWeekly(resp);
     renderWeeklyPanel(parsed);
@@ -764,12 +773,52 @@
     setInterval(highlightCurrentSlot, 60 * 1000);
   }
 
+  async function ensureCubeInitialized() {
+    // Activate the registry (schedules updater tasks)
+    try {
+      await post(DEEPSEE.setActiveRegistry(), { className: "TimeTracker.Cubes.Registry" });
+      console.log("SetActiveRegistry: OK");
+    } catch (e) {
+      console.warn("SetActiveRegistry failed.", e);
+    }
+
+    // Check whether the cube has ever been built
+    let lastUpdate = null;
+    try {
+      lastUpdate = await post(DEEPSEE.getLastUpdate(), { cubeKey: "TASKS" });
+      console.log("Cube last update:", lastUpdate);
+    } catch (e) {
+      console.warn("GetLastUpdate failed.", e);
+    }
+
+    // If no prior build exists, kick off an initial build then retry the pivot
+    if (!lastUpdate?.lastUpdate) {
+      console.log("No prior cube build found — triggering BuildAllRegisteredGroups.");
+      try {
+        await post(DEEPSEE.buildAllRegisteredGroups(), {});
+        console.log("BuildAllRegisteredGroups: OK");
+      } catch (e) {
+        console.warn("BuildAllRegisteredGroups failed.", e);
+        return;
+      }
+
+      // Retry the pivot once — no further build attempts on failure
+      try {
+        await loadWeeklyDistribution();
+      } catch (e) {
+        console.warn("Weekly distribution retry failed.", e);
+      }
+    }
+  }
+
   async function safeLoadWeekly() {
     try {
       await loadWeeklyDistribution();
     } catch (e) {
       console.warn("Weekly distribution failed to load.", e);
       if (weeklyPanel) weeklyPanel.innerHTML = `<div class="small text-muted">Weekly summary unavailable.</div>`;
+      // Attempt to initialize the cube so subsequent loads succeed
+      ensureCubeInitialized().catch(err => console.warn("Cube initialization failed.", err));
     }
   }
 
