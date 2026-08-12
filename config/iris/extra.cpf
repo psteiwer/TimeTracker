@@ -15,7 +15,9 @@ CreateNamespace:Name=TIMETRACKER,Globals=TIMETRACKER
 
 # Import Classes
 Execute:Namespace="TIMETRACKER",ClassName=%SYSTEM.OBJ,MethodName="Import",Arg1="/src/",Arg2="ck /extensions=cls",Arg3="",Arg4="",Arg5=1
-
+Execute:Namespace="TIMETRACKER",ClassName=%DeepSee.UserLibrary.Utils,MethodName=%Import,Arg1="/src/Targets-PercentOfTarget.pivot.DFI",Arg2=1
+Execute:Namespace="TIMETRACKER",ClassName=%DeepSee.UserLibrary.Utils,MethodName=%Import,Arg1="/src/Targets-Week By Category.pivot.DFI",Arg2=1
+Execute:Namespace="TIMETRACKER",ClassName=%DeepSee.UserLibrary.Utils,MethodName=%Import,Arg1="/src/Targets-Weekly.dashboard.DFI",Arg2=1
 
 # Create Role and permissions
 CreateRole:Name=TimeTrackerApp,Description="Role for the app",Resources="%DB_%DEFAULT:RW,%DB_TIMETRACKER:RW,%DeepSee_Admin:U,%DeepSee_AnalyzerEdit:U,%DeepSee_ArchitectEdit:U,%DeepSee_ListingGroupEdit:U,%DeepSee_PortalEdit:U"
