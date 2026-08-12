@@ -38,6 +38,7 @@
   let rows = [];        // current visible rows
   let categories = [];
   const saveTimers = new Map();
+  const saveLocks = new Map(); // guards against concurrent POSTs on new rows
   let clipboard = null;
   let copyMode = false;
 
@@ -516,6 +517,16 @@
       return;
     }
 
+    // If a POST is already in-flight for this new row, don't fire a second one.
+    // Mark the lock so the in-flight call does a follow-up PUT when it finishes.
+    if (!row.id && saveLocks.has(row.start)) {
+      saveLocks.get(row.start).pending = true;
+      return;
+    }
+
+    const lock = { pending: false };
+    if (!row.id) saveLocks.set(row.start, lock);
+
     status.textContent = `Saving ${row.start}…`;
     const payload = buildPayload(row);
 
@@ -533,6 +544,12 @@
     } catch (e) {
       console.error(e);
       status.textContent = `Save failed (${row.start})`;
+    } finally {
+      saveLocks.delete(row.start);
+    }
+
+    if (lock.pending) {
+      await saveRow(row);
     }
   }
 
