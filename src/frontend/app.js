@@ -11,7 +11,7 @@
   };
 
   // DeepSee REST endpoints
-  const DEEPSEE_BASE = "http://localhost:31313/api/deepsee/v3/timetracker";
+  const DEEPSEE_BASE = "http://localhost:31313/api/timetrackerds";
   const DEEPSEE = {
     pivotExecute:            () => `${DEEPSEE_BASE}/Data/PivotExecute`,
     getLastUpdate:           () => `${DEEPSEE_BASE}/Command/GetLastUpdate`,
